@@ -12,6 +12,19 @@ load_dotenv()
 DEFAULT_MODEL = "qwen/qwen3.6-27b"
 
 
+def get_config_value(key: str, default=None):
+    """Read a secret from Streamlit Cloud first, then fall back to local env."""
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+
+GROQ_API_KEY = get_config_value("GROQ_API_KEY")
+
+
 @tool
 def calculator(a: float, b: float) -> str:
     """Add two numbers."""
@@ -25,7 +38,7 @@ def say_hello(name: str) -> str:
 
 
 def create_agent(model_name: str):
-    model = ChatGroq(model=model_name, temperature=0)
+    model = ChatGroq(model=model_name, api_key=GROQ_API_KEY, temperature=0)
     return create_react_agent(model, [calculator, say_hello])
 
 
@@ -33,11 +46,16 @@ st.set_page_config(page_title="PythonAIChatbot", page_icon="✦")
 st.title("✦ PythonAIChatbot")
 st.caption("A simple Groq chat assistant with calculator and greeting tools.")
 
+if not GROQ_API_KEY:
+    st.warning(
+        "Add GROQ_API_KEY in Streamlit Cloud secrets or your local .env file before using the app."
+    )
+
 with st.sidebar:
     st.header("Settings")
     model_name = st.text_input(
         "Groq model",
-        value=os.getenv("GROQ_MODEL", DEFAULT_MODEL),
+        value=get_config_value("GROQ_MODEL", DEFAULT_MODEL),
         help="qwen/qwen3.6-27b is the configured free-tier model.",
     )
     if st.button("New chat", use_container_width=True):
